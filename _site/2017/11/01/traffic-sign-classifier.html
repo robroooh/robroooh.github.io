@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>CNN with Traffic Sign Classifier</title>
+  <meta name="description" content="">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="canonical" href="/2017/11/01/traffic-sign-classifier.html">
+  <link rel="alternate" type="application/rss+xml" title="SDC cave" href="/feed.xml">
+  
+  
+</head>
+
+
+  <body>
+
+    <header class="site-header" role="banner">
+
+  <div class="wrapper">
+    
+    
+    <a class="site-title" href="/">SDC cave</a>
+  
+    
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+              <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+              <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger">
+          
+            
+            
+          
+            
+            
+            <a class="page-link" href="/about/">About</a>
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+        </div>
+      </nav>
+    
+  </div>
+</header>
+
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">CNN with Traffic Sign Classifier</h1>
+    <p class="post-meta">
+      <time datetime="2017-11-01T20:25:27+01:00" itemprop="datePublished">
+        
+        Nov 1, 2017
+      </time>
+      </p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    
+<h2 id="project-build-a-traffic-sign-recognition-classifier">Project: Build a Traffic Sign Recognition Classifier</h2>
+
+<hr />
+<h2 id="step-0-load-the-data">Step 0: Load The Data</h2>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Load pickled data</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+
+<span class="c"># TODO: Fill this in based on where you saved the training and testing data</span>
+
+<span class="n">training_file</span> <span class="o">=</span> <span class="s">'datasets/train.p'</span>
+<span class="n">testing_file</span> <span class="o">=</span> <span class="s">'datasets/test.p'</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">training_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">'rb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">train</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">testing_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">'rb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    
+<span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span> <span class="o">=</span> <span class="n">train</span><span class="p">[</span><span class="s">'features'</span><span class="p">],</span> <span class="n">train</span><span class="p">[</span><span class="s">'labels'</span><span class="p">]</span>
+<span class="n">X_test</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">test</span><span class="p">[</span><span class="s">'features'</span><span class="p">],</span> <span class="n">test</span><span class="p">[</span><span class="s">'labels'</span><span class="p">]</span>
+</code></pre></div></div>
+
+<h3 id="step-01-construct-the-class-lookup-table">Step 0.1: construct the class lookup table</h3>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="n">pd</span>
+<span class="n">sign_lookup</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s">'signnames.csv'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">sign_lookup</span>
+</code></pre></div></div>
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>ClassId</th>
+      <th>SignName</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>0</td>
+      <td>Speed limit (20km/h)</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1</td>
+      <td>Speed limit (30km/h)</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2</td>
+      <td>Speed limit (50km/h)</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>3</td>
+      <td>Speed limit (60km/h)</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>4</td>
+      <td>Speed limit (70km/h)</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>5</td>
+      <td>Speed limit (80km/h)</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>6</td>
+      <td>End of speed limit (80km/h)</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>7</td>
+      <td>Speed limit (100km/h)</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>8</td>
+      <td>Speed limit (120km/h)</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>9</td>
+      <td>No passing</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>10</td>
+      <td>No passing for vehicles over 3.5 metric tons</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>11</td>
+      <td>Right-of-way at the next intersection</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>12</td>
+      <td>Priority road</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>13</td>
+      <td>Yield</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>14</td>
+      <td>Stop</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>15</td>
+      <td>No vehicles</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>16</td>
+      <td>Vehicles over 3.5 metric tons prohibited</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>17</td>
+      <td>No entry</td>
+    </tr>
+    <tr>
+      <th>18</th>
+      <td>18</td>
+      <td>General caution</td>
+    </tr>
+    <tr>
+      <th>19</th>
+      <td>19</td>
+      <td>Dangerous curve to the left</td>
+    </tr>
+    <tr>
+      <th>20</th>
+      <td>20</td>
+      <td>Dangerous curve to the right</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>21</td>
+      <td>Double curve</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>22</td>
+      <td>Bumpy road</td>
+    </tr>
+    <tr>
+      <th>23</th>
+      <td>23</td>
+      <td>Slippery road</td>
+    </tr>
+    <tr>
+      <th>24</th>
+      <td>24</td>
+      <td>Road narrows on the right</td>
+    </tr>
+    <tr>
+      <th>25</th>
+      <td>25</td>
+      <td>Road work</td>
+    </tr>
+    <tr>
+      <th>26</th>
+      <td>26</td>
+      <td>Traffic signals</td>
+    </tr>
+    <tr>
+      <th>27</th>
+      <td>27</td>
+      <td>Pedestrians</td>
+    </tr>
+    <tr>
+      <th>28</th>
+      <td>28</td>
+      <td>Children crossing</td>
+    </tr>
+    <tr>
+      <th>29</th>
+      <td>29</td>
+      <td>Bicycles crossing</td>
+    </tr>
+    <tr>
+      <th>30</th>
+      <td>30</td>
+      <td>Beware of ice/snow</td>
+    </tr>
+    <tr>
+      <th>31</th>
+      <td>31</td>
+      <td>Wild animals crossing</td>
+    </tr>
+    <tr>
+      <th>32</th>
+      <td>32</td>
+      <td>End of all speed and passing limits</td>
+    </tr>
+    <tr>
+      <th>33</th>
+      <td>33</td>
+      <td>Turn right ahead</td>
+    </tr>
+    <tr>
+      <th>34</th>
+      <td>34</td>
+      <td>Turn left ahead</td>
+    </tr>
+    <tr>
+      <th>35</th>
+      <td>35</td>
+      <td>Ahead only</td>
+    </tr>
+    <tr>
+      <th>36</th>
+      <td>36</td>
+      <td>Go straight or right</td>
+    </tr>
+    <tr>
+      <th>37</th>
+      <td>37</td>
+      <td>Go straight or left</td>
+    </tr>
+    <tr>
+      <th>38</th>
+      <td>38</td>
+      <td>Keep right</td>
+    </tr>
+    <tr>
+      <th>39</th>
+      <td>39</td>
+      <td>Keep left</td>
+    </tr>
+    <tr>
+      <th>40</th>
+      <td>40</td>
+      <td>Roundabout mandatory</td>
+    </tr>
+    <tr>
+      <th>41</th>
+      <td>41</td>
+      <td>End of no passing</td>
+    </tr>
+    <tr>
+      <th>42</th>
+      <td>42</td>
+      <td>End of no passing by vehicles over 3.5 metric ...</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">sign_lookup</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s">'SignName'</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>'Speed limit (20km/h)'
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="step-1-dataset-summary--exploration">Step 1: Dataset Summary &amp; Exploration</h2>
+
+<p>The pickled data is a dictionary with 4 key/value pairs:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">'features'</code> is a 4D array containing raw pixel data of the traffic sign images, (num examples, width, height, channels).</li>
+  <li><code class="highlighter-rouge">'labels'</code> is a 1D array containing the label/class id of the traffic sign. The file <code class="highlighter-rouge">signnames.csv</code> contains id -&gt; name mappings for each id.</li>
+  <li><code class="highlighter-rouge">'sizes'</code> is a list containing tuples, (width, height) representing the the original width and height the image.</li>
+  <li><code class="highlighter-rouge">'coords'</code> is a list containing tuples, (x1, y1, x2, y2) representing coordinates of a bounding box around the sign in the image. <strong>THESE COORDINATES ASSUME THE ORIGINAL IMAGE. THE PICKLED DATA CONTAINS RESIZED VERSIONS (32 by 32) OF THESE IMAGES</strong></li>
+</ul>
+
+<p>Complete the basic data summary below.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="n">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="o">%</span><span class="n">matplotlib</span> <span class="n">inline</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+<span class="n">axs</span> <span class="o">=</span> <span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s">'font'</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_train</span><span class="p">))</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">X_train</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">"{}: {}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">y_train</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">sign_lookup</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">y_train</span><span class="p">[</span><span class="n">index</span><span class="p">]][</span><span class="s">'SignName'</span><span class="p">]))</span>
+</code></pre></div></div>
+
+<p><img src="/assets/output_8_0.png" alt="alt text" /></p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Counter</span>
+<span class="kn">import</span> <span class="nn">matplotlib.patches</span> <span class="k">as</span> <span class="n">mpatches</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="n">sns</span>
+
+<span class="n">c</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
+<span class="n">c2</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">y_test</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span><span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">c2</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span><span class="nb">list</span><span class="p">(</span><span class="n">c2</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span><span class="n">color</span><span class="o">=</span><span class="s">'green'</span><span class="p">)</span>
+<span class="n">blue_patch</span> <span class="o">=</span> <span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s">'blue'</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s">'Train data'</span><span class="p">)</span>
+<span class="n">green_patch</span> <span class="o">=</span> <span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s">'green'</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s">'Test data'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">sign_lookup</span><span class="p">[</span><span class="s">'SignName'</span><span class="p">],</span><span class="n">rotation</span><span class="o">=</span><span class="s">'90'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="p">[</span><span class="n">blue_patch</span><span class="p">,</span><span class="n">green_patch</span><span class="p">])</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;matplotlib.legend.Legend at 0x7f3018749b00&gt;
+</code></pre></div></div>
+
+<p><img src="/assets/output_9_1.png" alt="alt text" /></p>
+
+<p>The dataset is imbalanced in term of classes though, it might be a good idea to generate data that is lower than 900</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">### Replace each question mark with the appropriate value.</span>
+
+<span class="c"># TODO: Number of training examples</span>
+<span class="n">n_train</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+
+<span class="c"># TODO: Number of testing examples.</span>
+<span class="n">n_test</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+
+<span class="c"># TODO: What's the shape of an traffic sign image?</span>
+<span class="n">image_shape</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span>
+
+<span class="c"># TODO: How many unique classes/labels there are in the dataset.</span>
+<span class="n">n_classes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sign_lookup</span><span class="p">)</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s">"Number of training examples ="</span><span class="p">,</span> <span class="n">n_train</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s">"Number of testing examples ="</span><span class="p">,</span> <span class="n">n_test</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s">"Image data shape ="</span><span class="p">,</span> <span class="n">image_shape</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s">"Number of classes ="</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Number of training examples = 39209
+Number of testing examples = 12630
+Image data shape = (32, 32, 3)
+Number of classes = 43
+</code></pre></div></div>
+
+<h4 id="preprocessing-idea">Preprocessing idea</h4>
+<ul>
+  <li>If the images are not very bright, pre-processing techniques like histogram equalization can help</li>
+  <li>Compare Adaptive &amp; normal histrogram EQ</li>
+  <li>Some other techniques are mean subtraction and standard deviation scaling of the input data</li>
+  <li>uses z-score</li>
+  <li>More preprocessing steps could have been included</li>
+  <li>This resource might provide some more intuition on the subjec</li>
+</ul>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
+<span class="kn">from</span> <span class="nn">skimage</span> <span class="kn">import</span> <span class="n">exposure</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="c"># This function taken from</span>
+<span class="c"># http://stackoverflow.com/questions/12201577/how-can-i-convert-an-rgb-image-into-grayscale-in-python</span>
+<span class="k">def</span> <span class="nf">rgb2gray</span><span class="p">(</span><span class="n">rgb</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">rgb</span><span class="p">[</span><span class="o">...</span><span class="p">,:</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.299</span><span class="p">,</span> <span class="mf">0.587</span><span class="p">,</span> <span class="mf">0.114</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">image_histogram_equalization</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">number_bins</span><span class="o">=</span><span class="mi">256</span><span class="p">):</span>
+    <span class="c"># from http://www.janeriksolem.net/2009/06/histogram-equalization-with-python-and.html</span>
+    <span class="c"># from http://stackoverflow.com/questions/28518684/histogram-equalization-of-grayscale-images-with-numpy</span>
+    
+    <span class="c"># get image histogram</span>
+    <span class="n">image_histogram</span><span class="p">,</span> <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">number_bins</span><span class="p">,</span> <span class="n">normed</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">cdf</span> <span class="o">=</span> <span class="n">image_histogram</span><span class="o">.</span><span class="n">cumsum</span><span class="p">()</span> <span class="c"># cumulative distribution function</span>
+    <span class="n">cdf</span> <span class="o">=</span> <span class="mi">255</span> <span class="o">*</span> <span class="n">cdf</span> <span class="o">/</span> <span class="n">cdf</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="c"># normalize</span>
+
+    <span class="c"># use linear interpolation of cdf to find new pixel values</span>
+    <span class="n">image_equalized</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">bins</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">cdf</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">image_equalized</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">cdf</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">X_train_gray</span> <span class="o">=</span> <span class="n">rgb2gray</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+<span class="n">X_test_gray</span> <span class="o">=</span> <span class="n">rgb2gray</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+
+<span class="n">X_train_eq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">X_train_gray</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="n">X_test_eq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">X_test_gray</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">X_train_gray</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">X_train_eq</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">X_train_gray</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+    <span class="n">X_train_eq</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">exposure</span><span class="o">.</span><span class="n">equalize_adapthist</span><span class="p">(</span><span class="n">X_train_gray</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">X_test_gray</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+    <span class="n">X_test_eq</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">exposure</span><span class="o">.</span><span class="n">equalize_adapthist</span><span class="p">(</span><span class="n">X_test_gray</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    
+<span class="n">X_train_eq_simple</span> <span class="o">=</span> <span class="n">image_histogram_equalization</span><span class="p">(</span><span class="n">X_train_gray</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">X_test_eq_simple</span> <span class="o">=</span> <span class="n">image_histogram_equalization</span><span class="p">(</span><span class="n">X_test_gray</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  0%|          | 21/39209 [00:00&lt;03:07, 208.88it/s]
+
+(39209, 32, 32)
+(39209, 32, 32)
+
+
+100%|██████████| 39209/39209 [03:10&lt;00:00, 205.78it/s]
+100%|██████████| 12630/12630 [01:01&lt;00:00, 205.83it/s]
+</code></pre></div></div>
+
+<h3 id="visualization-between-adaptive-histrogram-equalization-and-normal-histrogram-equalization">Visualization between Adaptive Histrogram Equalization and normal Histrogram equalization</h3>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+<span class="n">axs</span> <span class="o">=</span> <span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s">'font'</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_train_eq</span><span class="p">))</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">X_train_eq</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">"{}: {}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">y_train</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">sign_lookup</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">y_train</span><span class="p">[</span><span class="n">index</span><span class="p">]][</span><span class="s">'SignName'</span><span class="p">]))</span>
+    
+    <span class="n">image</span> <span class="o">=</span> <span class="n">X_train_gray</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+    
+    <span class="n">image</span> <span class="o">=</span> <span class="n">X_train_eq_simple</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">10</span><span class="p">]</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">10</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><img src="/assets/output_17_0.png" alt="alt text" /></p>
+
+<h3 id="it-seems-normal-histrogram-equalization-is-better-lets-take-this-one">It seems normal histrogram equalization is better, let’s take this one</h3>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">X_train_normalized</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">zscore</span><span class="p">(</span><span class="n">X_train_eq_simple</span><span class="p">)</span>
+<span class="n">X_test_normalized</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">zscore</span><span class="p">(</span><span class="n">X_test_eq_simple</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h3 id="now-lets-take-care-of-those-imbalanced-classes-lets-generate">now, let’s take care of those imbalanced classes, let’s generate!</h3>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">class_counter</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">need_gen</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">43</span><span class="p">)</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">class_counter</span><span class="o">.</span><span class="n">values</span><span class="p">()))[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">900</span><span class="p">]</span>
+</code></pre></div></div>
+
+<h2 id="warp-testing">Warp testing</h2>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">skimage.transform</span> <span class="kn">import</span> <span class="n">rotate</span><span class="p">,</span> <span class="n">warp</span>
+
+<span class="k">def</span> <span class="nf">random_shift</span><span class="p">(</span><span class="n">xy</span><span class="p">):</span>
+    <span class="n">xy</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">xy</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">xy</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+<span class="n">axs</span> <span class="o">=</span> <span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s">'font'</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_train</span><span class="p">))</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">X_train_normalized</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">"{}: {}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">y_train</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">sign_lookup</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">y_train</span><span class="p">[</span><span class="n">index</span><span class="p">]][</span><span class="s">'SignName'</span><span class="p">]))</span>
+    
+    <span class="n">image</span> <span class="o">=</span> <span class="n">warp</span><span class="p">(</span><span class="n">X_train_normalized</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">random_shift</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><img src="/assets/output_24_0.png" alt="alt text" /></p>
+
+<h2 id="rotation-testing">Rotation testing</h2>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">skimage.transform</span> <span class="kn">import</span> <span class="n">rotate</span><span class="p">,</span> <span class="n">warp_coords</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+<span class="n">axs</span> <span class="o">=</span> <span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s">'font'</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_train</span><span class="p">))</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">X_train_normalized</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">"{}: {}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">y_train</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">sign_lookup</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">y_train</span><span class="p">[</span><span class="n">index</span><span class="p">]][</span><span class="s">'SignName'</span><span class="p">]))</span>
+    
+    <span class="n">image</span> <span class="o">=</span> <span class="n">rotate</span><span class="p">(</span><span class="n">X_train_normalized</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">angle</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">15</span><span class="p">,</span><span class="mi">15</span><span class="p">))</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><img src="/assets/output_26_0.png" alt="alt text" /></p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">print</span><span class="p">(</span><span class="s">"Before Generate: X={} Y={}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">X_train_normalized</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">y_train</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Before Generate: X=(39209, 32, 32) Y=(39209,)
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># This chunk of code on how to append result to the original one I got the idea from Jeremy Shannon's code</span>
+<span class="c"># https://github.com/jeremy-shannon/CarND-Traffic-Sign-Classifier-Project/blob/master/Traffic_Sign_Classifier.ipynb</span>
+<span class="n">class_sample_thres</span> <span class="o">=</span> <span class="mi">900</span>
+<span class="k">for</span> <span class="n">_class</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">need_gen</span><span class="p">):</span>
+    <span class="n">populations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">y_train</span> <span class="o">==</span> <span class="n">_class</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">nb_samples</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">populations</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nb_samples</span> <span class="o">&lt;</span> <span class="n">class_sample_thres</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">nb_samples</span> <span class="o">-</span> <span class="n">class_sample_thres</span><span class="p">)):</span>
+            <span class="c"># get one from the dataset</span>
+            <span class="n">gen_img</span> <span class="o">=</span> <span class="n">X_train_normalized</span><span class="p">[</span><span class="n">populations</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="n">nb_samples</span><span class="p">]]</span>
+            <span class="c"># augment it</span>
+            <span class="n">gen_img</span> <span class="o">=</span> <span class="n">warp</span><span class="p">(</span><span class="n">rotate</span><span class="p">(</span><span class="n">gen_img</span><span class="p">,</span> <span class="n">angle</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">15</span><span class="p">,</span><span class="mi">15</span><span class="p">)),</span> <span class="n">random_shift</span><span class="p">)</span>
+            <span class="c"># append it to X,Y</span>
+            <span class="n">X_train_normalized</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">X_train_normalized</span><span class="p">,</span> <span class="p">[</span><span class="n">gen_img</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">y_train</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">y_train</span><span class="p">,</span> <span class="p">[</span><span class="n">_class</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>100%|██████████| 26/26 [09:53&lt;00:00, 30.60s/it]
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">print</span><span class="p">(</span><span class="s">"After Generate: X={} Y={}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">X_train_normalized</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">y_train</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>After Generate: X=(52110, 32, 32) Y=(52110,)
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">c</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span><span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="n">color</span><span class="o">=</span><span class="s">'blue'</span><span class="p">)</span>
+<span class="n">blue_patch</span> <span class="o">=</span> <span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s">'blue'</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s">'Train data'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">sign_lookup</span><span class="p">[</span><span class="s">'SignName'</span><span class="p">],</span><span class="n">rotation</span><span class="o">=</span><span class="s">'90'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="p">[</span><span class="n">blue_patch</span><span class="p">])</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;matplotlib.legend.Legend at 0x7f30186b6c50&gt;
+</code></pre></div></div>
+
+<p><img src="/assets/output_30_1.png" alt="alt text" /></p>
+
+<h3 id="every-dataset-im-shuffling">Every dataset I’m shuffling</h3>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">y_train_temp</span> <span class="o">=</span> <span class="n">y_train</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="kn">import</span> <span class="n">StratifiedShuffleSplit</span>
+<span class="n">sss</span> <span class="o">=</span> <span class="n">StratifiedShuffleSplit</span><span class="p">(</span><span class="n">test_size</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">train_index</span><span class="p">,</span> <span class="n">test_index</span> <span class="ow">in</span> <span class="n">sss</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">X_train_normalized</span><span class="p">,</span> <span class="n">y_train_temp</span><span class="p">):</span>
+    <span class="n">X_train</span><span class="p">,</span> <span class="n">X_validation</span> <span class="o">=</span> <span class="n">X_train_normalized</span><span class="p">[</span><span class="n">train_index</span><span class="p">],</span> <span class="n">X_train_normalized</span><span class="p">[</span><span class="n">test_index</span><span class="p">]</span>
+    <span class="n">y_train</span><span class="p">,</span> <span class="n">y_validation</span> <span class="o">=</span> <span class="n">y_train_temp</span><span class="p">[</span><span class="n">train_index</span><span class="p">],</span> <span class="n">y_train_temp</span><span class="p">[</span><span class="n">test_index</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">X_train</span><span class="o">.</span><span class="n">shape</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(41688, 32, 32)
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">X_validation</span><span class="o">.</span><span class="n">shape</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(10422, 32, 32)
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">X_test</span> <span class="o">=</span> <span class="n">X_test_normalized</span>
+
+<span class="n">X_train</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">X_train</span><span class="p">,[</span><span class="mi">41688</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">X_validation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">X_validation</span><span class="p">,[</span><span class="mi">10422</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">X_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">X_test_normalized</span><span class="p">,[</span><span class="mi">12630</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">X_train</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">X_validation</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">X_test</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(41688, 32, 32, 1)
+(10422, 32, 32, 1)
+(12630, 32, 32, 1)
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="step-2-design-and-test-a-model-architecture">Step 2: Design and Test a Model Architecture</h2>
+
+<h3 id="implementation">Implementation</h3>
+
+<p>Use the code cell (or multiple code cells, if necessary) to implement the first step of your project. Once you have completed your implementation and are satisfied with the results, be sure to thoroughly answer the questions that follow.</p>
+
+<h2 id="tf-things">TF Things</h2>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="n">tf</span>
+
+<span class="n">EPOCHS</span> <span class="o">=</span> <span class="mi">60</span>
+<span class="n">BATCH_SIZE</span> <span class="o">=</span> <span class="mi">128</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">tensorflow.contrib.layers</span> <span class="kn">import</span> <span class="n">flatten</span>
+
+<span class="k">def</span> <span class="nf">LeNetInception</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>    
+    <span class="c"># Arguments used for tf.truncated_normal, randomly defines variables for the weights and biases for each layer</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.1</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Convolution'</span><span class="p">):</span>
+        <span class="n">conv1_W</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">truncated_normal</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">mean</span> <span class="o">=</span> <span class="n">mu</span><span class="p">,</span> <span class="n">stddev</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">))</span>
+        <span class="n">conv1_b</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">))</span>
+        <span class="n">conv1</span>   <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">conv1_W</span><span class="p">,</span> <span class="n">strides</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">padding</span><span class="o">=</span><span class="s">'VALID'</span><span class="p">)</span> <span class="o">+</span> <span class="n">conv1_b</span>
+
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Relu'</span><span class="p">):</span>
+        <span class="n">conv1</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">conv1</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Convolution'</span><span class="p">):</span>
+        <span class="n">conv2_W</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">truncated_normal</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="n">mean</span> <span class="o">=</span> <span class="n">mu</span><span class="p">,</span> <span class="n">stddev</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">))</span>
+        <span class="n">conv2_b</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">16</span><span class="p">))</span>
+        <span class="n">conv2</span>   <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">conv1</span><span class="p">,</span> <span class="n">conv2_W</span><span class="p">,</span> <span class="n">strides</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">padding</span><span class="o">=</span><span class="s">'VALID'</span><span class="p">)</span> <span class="o">+</span> <span class="n">conv2_b</span>
+
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Relu'</span><span class="p">):</span>
+        <span class="n">conv2</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">conv2</span><span class="p">)</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Convolution'</span><span class="p">):</span>
+        <span class="n">conv3_W</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">truncated_normal</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span> <span class="n">mean</span> <span class="o">=</span> <span class="n">mu</span><span class="p">,</span> <span class="n">stddev</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">))</span>
+        <span class="n">conv3_b</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">20</span><span class="p">))</span>
+        <span class="n">conv3</span>   <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">conv2</span><span class="p">,</span> <span class="n">conv3_W</span><span class="p">,</span> <span class="n">strides</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">padding</span><span class="o">=</span><span class="s">'VALID'</span><span class="p">)</span> <span class="o">+</span> <span class="n">conv3_b</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Relu'</span><span class="p">):</span>
+        <span class="n">conv3</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">conv3</span><span class="p">)</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Convolution'</span><span class="p">):</span>
+        <span class="n">conv4_W</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">truncated_normal</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">28</span><span class="p">),</span> <span class="n">mean</span> <span class="o">=</span> <span class="n">mu</span><span class="p">,</span> <span class="n">stddev</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">))</span>
+        <span class="n">conv4_b</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">28</span><span class="p">))</span>
+        <span class="n">conv4</span>   <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">conv3</span><span class="p">,</span> <span class="n">conv4_W</span><span class="p">,</span> <span class="n">strides</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">padding</span><span class="o">=</span><span class="s">'VALID'</span><span class="p">)</span> <span class="o">+</span> <span class="n">conv4_b</span>
+
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Relu'</span><span class="p">):</span>
+        <span class="n">conv4</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">conv4</span><span class="p">)</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Maxpool'</span><span class="p">):</span>
+        <span class="n">conv4</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">max_pool</span><span class="p">(</span><span class="n">conv4</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">strides</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">padding</span><span class="o">=</span><span class="s">'VALID'</span><span class="p">)</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Flatten'</span><span class="p">):</span>
+        <span class="n">fc0</span>   <span class="o">=</span> <span class="n">flatten</span><span class="p">(</span><span class="n">conv4</span><span class="p">)</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'FC1'</span><span class="p">):</span>
+        <span class="n">fc1_W</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">truncated_normal</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2800</span><span class="p">,</span> <span class="mi">120</span><span class="p">),</span> <span class="n">mean</span> <span class="o">=</span> <span class="n">mu</span><span class="p">,</span> <span class="n">stddev</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">))</span>
+        <span class="n">fc1_b</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">120</span><span class="p">))</span>
+        <span class="n">fc1</span>   <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">fc0</span><span class="p">,</span> <span class="n">fc1_W</span><span class="p">)</span> <span class="o">+</span> <span class="n">fc1_b</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Relu'</span><span class="p">):</span>
+        <span class="n">fc1</span>    <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">fc1</span><span class="p">)</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Dropout'</span><span class="p">):</span>
+        <span class="n">fc1_drop</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">fc1</span><span class="p">,</span> <span class="n">keep_prob</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'FC2'</span><span class="p">):</span>
+        <span class="n">fc2_W</span>  <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">truncated_normal</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">120</span><span class="p">,</span> <span class="mi">84</span><span class="p">),</span> <span class="n">mean</span> <span class="o">=</span> <span class="n">mu</span><span class="p">,</span> <span class="n">stddev</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">))</span>
+        <span class="n">fc2_b</span>  <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">84</span><span class="p">))</span>
+        <span class="n">fc2</span>    <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">fc1_drop</span><span class="p">,</span> <span class="n">fc2_W</span><span class="p">)</span> <span class="o">+</span> <span class="n">fc2_b</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Relu'</span><span class="p">):</span>
+        <span class="n">fc2</span>    <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">fc2</span><span class="p">)</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Dropout'</span><span class="p">):</span>
+        <span class="n">fc2_drop</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">fc2</span><span class="p">,</span> <span class="n">keep_prob</span><span class="p">)</span>
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'FC3'</span><span class="p">):</span>
+        <span class="n">fc3_W</span>  <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">truncated_normal</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">84</span><span class="p">,</span> <span class="mi">43</span><span class="p">),</span> <span class="n">mean</span> <span class="o">=</span> <span class="n">mu</span><span class="p">,</span> <span class="n">stddev</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">))</span>
+        <span class="n">fc3_b</span>  <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">43</span><span class="p">))</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">fc2_drop</span><span class="p">,</span> <span class="n">fc3_W</span><span class="p">)</span> <span class="o">+</span> <span class="n">fc3_b</span>
+    
+    <span class="k">return</span> <span class="n">logits</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'input'</span><span class="p">):</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s">"x-input"</span><span class="p">)</span> 
+    <span class="n">y</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">,</span> <span class="p">(</span><span class="bp">None</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s">"y-input"</span><span class="p">)</span> 
+    <span class="n">one_hot_y</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">one_hot</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="mi">43</span><span class="p">)</span>
+    
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Dropoutprob'</span><span class="p">):</span>
+    <span class="n">keep_prob</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">rate</span> <span class="o">=</span> <span class="mf">0.001</span>
+
+<span class="n">logits</span> <span class="o">=</span> <span class="n">LeNetInception</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Softmax'</span><span class="p">):</span>
+    <span class="n">cross_entropy</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">softmax_cross_entropy_with_logits</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">one_hot_y</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Loss'</span><span class="p">):</span>
+    <span class="n">loss_operation</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">cross_entropy</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'AdamOptimizer'</span><span class="p">):</span>
+    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">AdamOptimizer</span><span class="p">(</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="n">rate</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'Minimize'</span><span class="p">):</span>
+    <span class="n">training_operation</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">loss_operation</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'correct_prediction'</span><span class="p">):</span>
+    <span class="n">correct_prediction</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">tf</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">one_hot_y</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s">'accuracy_operation'</span><span class="p">):</span>
+    <span class="n">accuracy_operation</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">correct_prediction</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="n">saver</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Saver</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span><span class="n">X_data</span><span class="p">,</span> <span class="n">y_data</span><span class="p">):</span>
+    <span class="n">num_examples</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_data</span><span class="p">)</span>
+    <span class="n">total_accuracy</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">sess</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">get_default_session</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_examples</span><span class="p">,</span> <span class="n">BATCH_SIZE</span><span class="p">):</span>
+        <span class="n">batch_x</span><span class="p">,</span> <span class="n">batch_y</span> <span class="o">=</span> <span class="n">X_data</span><span class="p">[</span><span class="n">offset</span><span class="p">:</span><span class="n">offset</span><span class="o">+</span><span class="n">BATCH_SIZE</span><span class="p">],</span> <span class="n">y_data</span><span class="p">[</span><span class="n">offset</span><span class="p">:</span><span class="n">offset</span><span class="o">+</span><span class="n">BATCH_SIZE</span><span class="p">]</span>
+        <span class="n">accuracy</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">accuracy_operation</span><span class="p">,</span> <span class="n">feed_dict</span><span class="o">=</span><span class="p">{</span><span class="n">x</span><span class="p">:</span> <span class="n">batch_x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">batch_y</span><span class="p">,</span> <span class="n">keep_prob</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">})</span>
+        <span class="n">total_accuracy</span> <span class="o">+=</span> <span class="p">(</span><span class="n">accuracy</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch_x</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">total_accuracy</span> <span class="o">/</span> <span class="n">num_examples</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">sklearn.utils</span> <span class="kn">import</span> <span class="n">shuffle</span>
+<span class="n">gpu_options</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">GPUOptions</span><span class="p">(</span><span class="n">per_process_gpu_memory_fraction</span><span class="o">=</span><span class="mf">0.333</span><span class="p">)</span>
+<span class="n">logs_path</span> <span class="o">=</span> <span class="s">"/tmp/traffic_sign/1"</span>
+                  
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">ConfigProto</span><span class="p">(</span><span class="n">gpu_options</span><span class="o">=</span><span class="n">gpu_options</span><span class="p">))</span> <span class="k">as</span> <span class="n">sess</span><span class="p">:</span>    
+    <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">initialize_all_variables</span><span class="p">())</span>
+    <span class="n">num_examples</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">SummaryWriter</span><span class="p">(</span><span class="n">logs_path</span><span class="p">,</span> <span class="n">graph</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">get_default_graph</span><span class="p">())</span>
+    
+    <span class="k">print</span><span class="p">(</span><span class="s">"Training..."</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">EPOCHS</span><span class="p">):</span>
+        
+        <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span> <span class="o">=</span> <span class="n">shuffle</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_examples</span><span class="p">,</span> <span class="n">BATCH_SIZE</span><span class="p">):</span>
+            <span class="n">end</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">BATCH_SIZE</span>
+            <span class="n">batch_x</span><span class="p">,</span> <span class="n">batch_y</span> <span class="o">=</span> <span class="n">X_train</span><span class="p">[</span><span class="n">offset</span><span class="p">:</span><span class="n">end</span><span class="p">],</span> <span class="n">y_train</span><span class="p">[</span><span class="n">offset</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+            <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">training_operation</span><span class="p">,</span> <span class="n">feed_dict</span><span class="o">=</span><span class="p">{</span><span class="n">x</span><span class="p">:</span> <span class="n">batch_x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">batch_y</span><span class="p">,</span> <span class="n">keep_prob</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">})</span>
+            
+        <span class="n">validation_accuracy</span> <span class="o">=</span> <span class="n">evaluate</span><span class="p">(</span><span class="n">X_validation</span><span class="p">,</span> <span class="n">y_validation</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">"EPOCH {} ..."</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">"Validation Accuracy = {:.3f}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">validation_accuracy</span><span class="p">))</span>
+        <span class="k">print</span><span class="p">()</span>
+        
+    <span class="n">saver</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">sess</span><span class="p">,</span> <span class="s">'./lenet'</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"Model saved"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Training...
+
+EPOCH 1 ...
+Validation Accuracy = 0.785
+
+EPOCH 2 ...
+Validation Accuracy = 0.860
+
+EPOCH 3 ...
+Validation Accuracy = 0.902
+
+EPOCH 4 ...
+Validation Accuracy = 0.917
+
+EPOCH 5 ...
+Validation Accuracy = 0.934
+
+EPOCH 6 ...
+Validation Accuracy = 0.942
+
+EPOCH 7 ...
+Validation Accuracy = 0.953
+
+EPOCH 8 ...
+Validation Accuracy = 0.958
+
+EPOCH 9 ...
+Validation Accuracy = 0.964
+
+EPOCH 10 ...
+Validation Accuracy = 0.964
+
+EPOCH 11 ...
+Validation Accuracy = 0.967
+
+EPOCH 12 ...
+Validation Accuracy = 0.970
+
+EPOCH 13 ...
+Validation Accuracy = 0.970
+
+EPOCH 14 ...
+Validation Accuracy = 0.972
+
+EPOCH 15 ...
+Validation Accuracy = 0.972
+
+EPOCH 16 ...
+Validation Accuracy = 0.974
+
+EPOCH 17 ...
+Validation Accuracy = 0.974
+
+EPOCH 18 ...
+Validation Accuracy = 0.978
+
+EPOCH 19 ...
+Validation Accuracy = 0.980
+
+EPOCH 20 ...
+Validation Accuracy = 0.978
+
+EPOCH 21 ...
+Validation Accuracy = 0.978
+
+EPOCH 22 ...
+Validation Accuracy = 0.976
+
+EPOCH 23 ...
+Validation Accuracy = 0.975
+
+EPOCH 24 ...
+Validation Accuracy = 0.979
+
+EPOCH 25 ...
+Validation Accuracy = 0.981
+
+EPOCH 26 ...
+Validation Accuracy = 0.981
+
+EPOCH 27 ...
+Validation Accuracy = 0.982
+
+EPOCH 28 ...
+Validation Accuracy = 0.983
+
+EPOCH 29 ...
+Validation Accuracy = 0.982
+
+EPOCH 30 ...
+Validation Accuracy = 0.981
+
+EPOCH 31 ...
+Validation Accuracy = 0.983
+
+EPOCH 32 ...
+Validation Accuracy = 0.984
+
+EPOCH 33 ...
+Validation Accuracy = 0.983
+
+EPOCH 34 ...
+Validation Accuracy = 0.985
+
+EPOCH 35 ...
+Validation Accuracy = 0.985
+
+EPOCH 36 ...
+Validation Accuracy = 0.983
+
+EPOCH 37 ...
+Validation Accuracy = 0.983
+
+EPOCH 38 ...
+Validation Accuracy = 0.984
+
+EPOCH 39 ...
+Validation Accuracy = 0.982
+
+EPOCH 40 ...
+Validation Accuracy = 0.985
+
+EPOCH 41 ...
+Validation Accuracy = 0.985
+
+EPOCH 42 ...
+Validation Accuracy = 0.985
+
+EPOCH 43 ...
+Validation Accuracy = 0.984
+
+EPOCH 44 ...
+Validation Accuracy = 0.983
+
+EPOCH 45 ...
+Validation Accuracy = 0.985
+
+EPOCH 46 ...
+Validation Accuracy = 0.987
+
+EPOCH 47 ...
+Validation Accuracy = 0.986
+
+EPOCH 48 ...
+Validation Accuracy = 0.982
+
+EPOCH 49 ...
+Validation Accuracy = 0.985
+
+EPOCH 50 ...
+Validation Accuracy = 0.986
+
+EPOCH 51 ...
+Validation Accuracy = 0.984
+
+EPOCH 52 ...
+Validation Accuracy = 0.981
+
+EPOCH 53 ...
+Validation Accuracy = 0.985
+
+EPOCH 54 ...
+Validation Accuracy = 0.982
+
+EPOCH 55 ...
+Validation Accuracy = 0.986
+
+EPOCH 56 ...
+Validation Accuracy = 0.985
+
+EPOCH 57 ...
+Validation Accuracy = 0.987
+
+EPOCH 58 ...
+Validation Accuracy = 0.985
+
+EPOCH 59 ...
+Validation Accuracy = 0.986
+
+EPOCH 60 ...
+Validation Accuracy = 0.984
+
+Model saved
+</code></pre></div></div>
+
+<p>Log</p>
+
+<ul>
+  <li>20epoch GrayScale + Zscore, Lenet architecture validation_acc = 0.979, test = 0.882</li>
+  <li>60epoch GrayScale + Zscore, 3x3 3x3 5x5 5x5 maxpool architecture validation_acc = 0.996, test = 0.968</li>
+  <li>60epoch GrayScale + histeq + Zscore + data generation(rotate,warp) validation_acc = 0.986, test = 0.971</li>
+</ul>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">gpu_options</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">GPUOptions</span><span class="p">(</span><span class="n">per_process_gpu_memory_fraction</span><span class="o">=</span><span class="mf">0.333</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">ConfigProto</span><span class="p">(</span><span class="n">gpu_options</span><span class="o">=</span><span class="n">gpu_options</span><span class="p">))</span> <span class="k">as</span> <span class="n">sess</span><span class="p">:</span>
+    <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">initialize_all_variables</span><span class="p">())</span>
+    <span class="n">saver2</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">import_meta_graph</span><span class="p">(</span><span class="s">'./lenet.meta'</span><span class="p">)</span>
+    <span class="n">saver2</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">sess</span><span class="p">,</span> <span class="s">"./lenet"</span><span class="p">)</span>
+    <span class="n">test_accuracy</span> <span class="o">=</span> <span class="n">evaluate</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"Test Set Accuracy = {:.3f}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">test_accuracy</span><span class="p">))</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Test Set Accuracy = 0.970
+</code></pre></div></div>
+
+<p><strong>Data Preprocessing</strong></p>
+<ul>
+  <li>rgb to grayscale, my perception is that the Traffic sign should reproduce the same meaning even it is in grayscale, and thus should cover the same procedure because the convnet is trying to mimic human’s eyes</li>
+  <li>Histrogram equalization on the images to make sure that the images are not too bright or too dark</li>
+  <li>i Normalize the data using zscore to prevent gradients explode</li>
+</ul>
+
+<p><strong>Train/Validate/Test Splitting</strong></p>
+<ul>
+  <li>I use StratifiedShuffleSplit for splitting dataset for train/validate as mentioned from the suggestions. I use test_size=0.2</li>
+</ul>
+
+<p><strong>Data Generation</strong></p>
+<ul>
+  <li>How Did I generate data
+    <ul>
+      <li>I generate the data from original dataset by
+        <ul>
+          <li>rotate the images by ±15°</li>
+          <li>translate(move) the images up down left right by ±5 pixels</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>Why Did I generate data
+    <ul>
+      <li>The numbers of data classes are imbalanced, so I try to generate them which prevents the problems when training the network</li>
+    </ul>
+  </li>
+  <li>The differences from original dataset
+    <ul>
+      <li>we got almost balanced dataset for most classes, it’s not that balanced, but at least it’s much better then before</li>
+    </ul>
+  </li>
+</ul>
+
+<p><strong>Final Architecture</strong></p>
+
+<p>Here is the image from my TensorBoard
+<img src="/assets/graph.png" alt="Architecture from TensorBoard" /></p>
+
+<p>the font rendering is not stable and it lacks of some information, please take a look on the list below</p>
+
+<p>My architecture is as the following</p>
+
+<ol>
+  <li>6@3x3 convolution</li>
+  <li>16@3x3 convolution</li>
+  <li>20@5x5 convolution</li>
+  <li>28@5x5 convolution</li>
+  <li>2x2 maxpooling</li>
+  <li>(2800, 120) Fully Connected</li>
+  <li>Dropout keep_prob = 0.7</li>
+  <li>(120, 84) Fully Connected</li>
+  <li>Dropout keep_prob = 0.7</li>
+  <li>(84, 43) Fully Connected</li>
+</ol>
+
+<p>Note that I did not use the maxpooling between convolutional layers, becuase I feel that making convolution to get all the features might be more useful &amp; be able to extract more features even it is more computational expensive</p>
+
+<p>The main reason I use dropout is because <a href="Dropout: A Simple Way to Prevent Neural Networks from Overfitting">this</a> paper states that using dropout a network can be able to prevent complex co-adaptation, and I gives higher test accuracy :)</p>
+
+<h3 id="model-training-4">Model Training 4</h3>
+
+<p>In summary,</p>
+
+<ol>
+  <li>EPOCHS = 60</li>
+  <li>BATCHSIZE = 128</li>
+  <li>learning_rate = 0.001</li>
+  <li>keep_prob =0.7</li>
+  <li>AdamOptimizer</li>
+</ol>
+
+<p>Mostly are the same, all i added is just to train for more epochs, at first i am scared that it might lead to overfitting. but I got dropout, so at least it could prevent it. I train module vary the keep_prob from 0.5 0.6 0.7 and I found that 0.7 gives me the best value</p>
+
+<h3 id="approches-to-solution">Approches to Solution</h3>
+
+<p>Mostly Trial and error</p>
+
+<ul>
+  <li>I use AdamOptimizer because it is like Stochastic Gradient Descent with smaller memory requirement and provides adaptive learning rate, According to ADAM: A method for stochastic optimization.</li>
+  <li>I chose the type of layer under the perception that trying to vary the size of convolutional kernel from small to big is the right thing to do because the small kernel it would track the abstraction which might be features of a particular class and the bigger kernel might extract the high level feature</li>
+  <li>there are 5 hyperparameters I need to tune which are EPOCHS, BATCHSIZE, learning_rate and dropout keep_prob</li>
+  <li>for the first 4 I try to do all combinations of them and see which one gives the best result</li>
+  <li>then, I try to vary the value of keep_prob based on how it does well on the test set</li>
+  <li>I tested the dataset with vanilla lenet, but it does not generalize well on the test&amp;my dataset, so I believe the network lacks of some data. That’s why I try to generate more dataset and preprocess them according to my sense that the images can be rotate and transform according to the raw data</li>
+  <li>I fine-tuned the model upon how well the model works on validation set, does it converges too fast? or too slow, once the model can proceed train well, I finalize the result based on benchmark it on the accuracy of test set. I also check that the result of training and testing dataset should not be too far, or it might cause overfitting</li>
+</ul>
+
+<hr />
+
+<h2 id="test-a-model-on-new-images">Test a Model on New Images</h2>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span> 
+<span class="kn">import</span> <span class="nn">matplotlib.image</span> <span class="k">as</span> <span class="n">mpimg</span>
+
+<span class="kn">from</span> <span class="nn">skimage</span> <span class="kn">import</span> <span class="n">color</span>
+<span class="kn">from</span> <span class="nn">skimage</span> <span class="kn">import</span> <span class="n">io</span>
+
+<span class="n">images</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="s">'my-images/*.png'</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+<span class="n">axs</span> <span class="o">=</span> <span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+<span class="n">new_imgs</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">idx</span><span class="p">,</span><span class="n">img_path</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+    <span class="c"># I use rgb2gray from skimage because the original method doesnot work with this additional dataset</span>
+    <span class="n">new_img_rgb</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">img_path</span><span class="p">)</span>
+    <span class="n">new_img_gray</span><span class="o">=</span> <span class="n">color</span><span class="o">.</span><span class="n">rgb2gray</span><span class="p">(</span><span class="n">new_img_rgb</span><span class="p">);</span>
+    <span class="n">new_img_sq_simple</span> <span class="o">=</span> <span class="n">image_histogram_equalization</span><span class="p">(</span><span class="n">new_img_gray</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">new_img</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">zscore</span><span class="p">(</span><span class="n">new_img_sq_simple</span><span class="p">)</span>
+    <span class="n">new_imgs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_img</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    <span class="n">axs</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">new_img_rgb</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><img src="/assets/output_63_0.png" alt="alt text" /></p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">y_new_imgs</span> <span class="o">=</span> <span class="p">[</span><span class="mi">18</span><span class="p">,</span><span class="mi">29</span><span class="p">,</span><span class="mi">35</span><span class="p">,</span><span class="mi">14</span><span class="p">,</span><span class="mi">31</span><span class="p">,</span><span class="mi">31</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">new_imgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">new_imgs</span><span class="p">)</span>
+<span class="n">new_imgs_nonreshape</span> <span class="o">=</span> <span class="n">new_imgs</span>
+<span class="n">new_imgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">new_imgs</span><span class="p">,[</span><span class="mi">6</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">new_imgs</span><span class="o">.</span><span class="n">shape</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(6, 32, 32, 1)
+</code></pre></div></div>
+
+<h3 id="which-images-make-classification-difficults">Which images make classification difficults</h3>
+
+<p>There are general cases where the images are hard to classified which are</p>
+<ul>
+  <li>The Brightness, the image may be too dark to perceive information from them</li>
+  <li>The Contrast, the image might lack of contrast to extract detail</li>
+  <li>The Angle, for some sign, the rotation causes confusion to the network and human</li>
+</ul>
+
+<p>the images are on the above cells, I find difficulties for most images i chose</p>
+<ul>
+  <li>1st image, nothing is wrong, the network should be able to classify this</li>
+  <li>2nd image, the bicycle crossing one, I think it is hard to classify since the data is downsampling poorly by paint which can’t even connect the wheel, and there is a person on the sign which is not exact the same as we have in dataset</li>
+  <li>3rd image, the go ahead, the network should be able to classify this</li>
+  <li>4th image, the stop, if my network learn to detect the “STOP” font, it should be able to classify this easily, however since the network might pick up the 6 corner shape(pentagon?) and the lower part of the image is cut, it might create problem with the classifier</li>
+  <li>5th &amp; 6th image, the wildlife ones, I’m not sure if we have enough data to train with different species with the network, both two surely break the network :D</li>
+</ul>
+
+<h3 id="accuracy-on-real-world">Accuracy on real-world</h3>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">gpu_options</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">GPUOptions</span><span class="p">(</span><span class="n">per_process_gpu_memory_fraction</span><span class="o">=</span><span class="mf">0.333</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">ConfigProto</span><span class="p">(</span><span class="n">gpu_options</span><span class="o">=</span><span class="n">gpu_options</span><span class="p">))</span> <span class="k">as</span> <span class="n">sess</span><span class="p">:</span>
+    <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">initialize_all_variables</span><span class="p">())</span>
+    <span class="n">saver3</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">import_meta_graph</span><span class="p">(</span><span class="s">'./lenet.meta'</span><span class="p">)</span>
+    <span class="n">saver3</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">sess</span><span class="p">,</span> <span class="s">"./lenet"</span><span class="p">)</span>
+    <span class="n">new_accuracy</span> <span class="o">=</span> <span class="n">evaluate</span><span class="p">(</span><span class="n">new_imgs</span><span class="p">,</span> <span class="n">y_new_imgs</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"Test Set Accuracy = {:.3f}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">new_accuracy</span><span class="p">))</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Test Set Accuracy = 0.167
+</code></pre></div></div>
+
+<p>My model is too weak to generalize and localize the street sign I found on Google :D. The Accuracy on my acquired images is quite low at only <strong>16.7%</strong> while it was <strong>97.0%</strong> on the testing set. I believe the reason can be found in the answer to the question 6 or the model might be overfitting in the sense of it lacks variety of data (camels,cows)</p>
+
+<h3 id="certainties-of-the-predictions">Certainties of the predictions</h3>
+
+<p>For the centainty of predictions, the model is certain and correctly predicted only the one obvious sign which is Go Ahead only (3rd image). However, when it comes to other signs, the network is too far to be correct for these images. I believe the reason is explained on the answer to question 6. There is a case which is the 1st image(General Caution) that its class appears on the top_k predictions, but the softmax probability is too little to be correct :D, and I hope it was obvious and could be predicted correctly. Maybe, it was because I didn’t downsampling it nicely.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">softmax_logits</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">)</span>
+<span class="n">top_k</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">top_k</span><span class="p">(</span><span class="n">softmax_logits</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">ConfigProto</span><span class="p">(</span><span class="n">gpu_options</span><span class="o">=</span><span class="n">gpu_options</span><span class="p">))</span> <span class="k">as</span> <span class="n">sess</span><span class="p">:</span>
+    <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">initialize_all_variables</span><span class="p">())</span>
+    <span class="n">saver4</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">import_meta_graph</span><span class="p">(</span><span class="s">'./lenet.meta'</span><span class="p">)</span>
+    <span class="n">saver4</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">sess</span><span class="p">,</span> <span class="s">"./lenet"</span><span class="p">)</span>
+    <span class="n">new_softmax_logits</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">softmax_logits</span><span class="p">,</span> <span class="n">feed_dict</span><span class="o">=</span><span class="p">{</span><span class="n">x</span><span class="p">:</span> <span class="n">new_imgs</span><span class="p">,</span> <span class="n">keep_prob</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">})</span>
+    <span class="n">top_predictions</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">top_k</span><span class="p">,</span> <span class="n">feed_dict</span><span class="o">=</span><span class="p">{</span><span class="n">x</span><span class="p">:</span> <span class="n">new_imgs</span><span class="p">,</span> <span class="n">keep_prob</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">})</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">images</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="s">'my-images/*.png'</span><span class="p">)</span>
+    
+<span class="c"># I took code from the suggestions</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,(</span><span class="n">labels</span><span class="p">,</span><span class="n">probs</span><span class="p">,</span><span class="n">img_path</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">top_predictions</span><span class="o">.</span><span class="n">indices</span><span class="p">,</span> <span class="n">top_predictions</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">images</span><span class="p">)):</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span><span class="n">probs</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">sign_lookup</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">y_new_imgs</span><span class="p">[</span><span class="n">i</span><span class="p">]][</span><span class="s">'SignName'</span><span class="p">])</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">mpimg</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">img_path</span><span class="p">)</span>
+    <span class="n">height</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">43.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">sign_lookup</span><span class="p">[</span><span class="s">'SignName'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s">'right'</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">1.0</span><span class="p">,</span><span class="mf">0.1</span><span class="p">))</span>
+    
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">([</span><span class="o">.</span><span class="mi">75</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="n">frameon</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s">'gray'</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">'off'</span><span class="p">)</span>
+    
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+</code></pre></div></div>
+
+<p><img src="/assets/output_75_0.png" alt="alt text" /></p>
+
+<p><img src="/assets/output_75_1.png" alt="alt text" /></p>
+
+<p><img src="/assets/output_75_2.png" alt="alt text" /></p>
+
+<p><img src="/assets/output_75_3.png" alt="alt text" /></p>
+
+<p><img src="/assets/output_75_4.png" alt="alt text" /></p>
+
+<p><img src="/assets/output_75_5.png" alt="alt textng" /></p>
+
+  </div>
+
+  
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">SDC cave</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li>
+            
+              SDC cave
+            
+            </li>
+            
+            <li><a href="mailto:"></a></li>
+            
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/robroooh"><span class="icon icon--github"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">robroooh</span></a>
+
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/"><span class="icon icon--twitter"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/></svg>
+</span><span class="username"></span></a>
+
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>A Udacity&#39;s self-driving car nanodegree student who love machine learning.</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>
